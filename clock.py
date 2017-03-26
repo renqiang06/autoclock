@@ -109,7 +109,7 @@ def get_weather():
 
 
 def lianjiaanting():
-    url = 'http: // sh.lianjia.com / ershoufang / q5011000013952'
+    url = 'http://sh.lianjia.com/ershoufang/q5011000013952'
     res = requests.get(url)
     res = res.text.encode(res.encoding).decode('utf-8')
     soup = BeautifulSoup(res, 'html.parser')
@@ -140,19 +140,6 @@ def main():
             print('休息时间，不提供服务')
             time.sleep(10)
             continue
-        elif get_seconds() <= 3600:
-            print('单次闹钟', '倒计时:')
-
-            while True:
-                ss = get_seconds()
-                if deltass == 10:  # 10秒钟更新一次倒计时
-                    print('还剩下%s秒' % ss)
-                    deltass = 0  # 重置
-                if ss > 1:
-                    time.sleep(0.5)
-                    deltass += 0.5
-                else:
-                    break
         else:
             print('循环闹钟')
             print('倒计时：')
@@ -172,7 +159,12 @@ def main():
                     break
 
         # 获取需要转换语音的文字
-        text = get_weather()
+        if hour == 19:
+            text = get_weather()
+        elif hour == 21:
+            text = lianjiaanting()
+        else:
+            text = get_weather()
         # 将文字转换为语音并存入程序所在文件夹
         text2voice(text)
         # 获取音乐文件绝对地址
