@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import os
@@ -5,7 +6,12 @@ import re
 import time
 import requests
 import datetime
+import sqlite3
 from bs4 import BeautifulSoup
+import smtplib  # 导入smtplib和MIMEText
+from email.mime.text import MIMEText
+
+data = []
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit'
@@ -102,7 +108,7 @@ def get_weather():
     # today = datetime.datetime.now().date().strftime('%Y年%m月%d日')
     today = datetime.datetime.now().strftime('%Y.%m.%d')
     # 将获取的信息拼接成一句话
-    end = '谢谢，再见，哈哈哈哈!'
+    end = '谢谢，再见!'
     textall = '大家好！我是任强。今天是%s,天气%s,温度%s摄氏度,%s,%s,%s,%s,%s' % \
               (today, weather, temp, sd, wind, aqi, info, end)
     return textall
@@ -115,11 +121,27 @@ def lianjiaanting():
     soup = BeautifulSoup(res, 'html.parser')
     average_price = soup.find(name='span', attrs={'class': 'botline'}).strong.getText()
     nums_houses = soup.find(name='div', attrs={'class': 'list-head clear'}).span.getText()
-    textfangjia = '下面播报今天安亭镇玉兰四村的房价情况：玉兰四村的挂牌均价为%s元，正在出售%s套二手房源。' % (average_price, nums_houses)
+
+    housenumbers = soup.find_all(name='div', attrs={'class': 'pic-panel'})
+    wheres = soup.find_all(name='div', attrs={'class': 'where'})
+    others = soup.find_all(name='div', attrs={'class': 'other'})
+    prices = soup.find_all(name='div', attrs={'class': 'col-3'})
+    viewtimes = soup.find_all(name='div', attrs={'class': 'col-2'})
+    for housenumber, where, other, price, viewtime in zip(housenumbers, wheres, others, prices, viewtimes):
+        # result = {}
+        result['housenumber'] = housenumber.find('a').get('key')
+        result['where'] = where.getText().replace('\t', '').replace('\n', ' ').replace('\xa0', '').replace('  ', ' ')
+        result['other'] = other.getText().replace('|', '').replace('\t', '').replace('\n', ' ').replace('  ', ' ')
+        result['price'] = price.getText().replace('\t', '').replace('\n', ' ').replace('  ', ' ')
+        result['viewtime'] = viewtime.getText().replace('\t', '').replace('\n', ' ').replace('  ', ' ')
+        data.append(result)
+
+    textfangjia = '下面播报今天安亭镇玉兰四村的房价情况：玉兰四村的挂牌均价为%s元，正在出售%s套二手房源。谢谢收听，明天同一时间见！' \
+                  % (average_price, nums_houses)
     return textfangjia
 
 
-def text2voice(texts):
+def text2voice(texts, nameofproject):
     # 1的翻译为：http://tts.baidu.com/text2audio?idx=1&tex=222&cuid=baidu_speech_demo&cod=2&lan=zh&ctp=1&pdt=1&spd=5&per=3&vol=9&pit=5
     # cod=2 lan=zh(语言中文) ctp=1 pdt=1 spd=4(语速1:2:9) per=4(0女2男3度逍遥4度丫丫) vol=5(0:1:9) pit=5
     url = 'http://tts.baidu.com/text2audio?idx=1&tex={0}&cuid=baidu_speech_' \
@@ -127,8 +149,33 @@ def text2voice(texts):
     # 下载转换后的mp3格式语音
     res = requests.get(url, headers=headers)
     # 将MP3存入本地
-    with open(datetime.datetime.now().strftime('%Y.%m.%d') + '天气.mp3', 'wb') as f:
+    with open(datetime.datetime.now().strftime('%Y.%m.%d') + '%s.mp3' % nameofproject, 'wb') as f:
         f.write(res.content)
+
+
+def send_mail(sub, content):
+    mailto_list = ["449582502@qq.com"]  # 要发给谁，这里发给1个人
+    #####################
+    mail_host = "smtp.126.com"  # 设置服务器，用户名、口令以及邮箱的后缀
+    mail_user = "renqiang06"
+    mail_pass = "r1989q1206"
+    mail_postfix = "126.com"
+    #####################
+    me = mail_user + "<" + mail_user + "@" + mail_postfix + ">"
+    msg = MIMEText(content, _charset='gbk')
+    msg['Subject'] = sub
+    msg['From'] = me
+    msg['To'] = ";".join(mailto_list)
+    try:
+        s = smtplib.SMTP()
+        s.connect(mail_host)
+        s.login(mail_user, mail_pass)
+        s.sendmail(me, mailto_list, msg.as_string())
+        s.close()
+        return True
+    except Exception as e:
+        print(str(e))
+        return False
 
 
 def main():
@@ -136,7 +183,7 @@ def main():
         deltass = 0
         t = time.localtime()
         hour = t.tm_hour
-        if hour > 22 or hour < 8:  # 为了晚上22点之后，上午8点之前不被打扰，设定了条件
+        if hour > 23 or hour < 8:  # 为了晚上22点之后，上午8点之前不被打扰，设定了条件
             print('休息时间，不提供服务')
             time.sleep(10)
             continue
@@ -161,25 +208,36 @@ def main():
         # 获取需要转换语音的文字
         if hour == 19:
             text = get_weather()
-        elif hour == 21:
+            nameofproject = '天气'
+        elif hour == 22:
             text = lianjiaanting()
+            nameofproject = '玉兰四村'
         else:
             text = get_weather()
+            nameofproject = '天气'
         # 将文字转换为语音并存入程序所在文件夹
-        text2voice(text)
+        text2voice(text, nameofproject)
         # 获取音乐文件绝对地址
         mp3path2 = os.path.join(os.path.dirname(__file__), 'clockrq.mp3')
         # 先播放一首音乐做闹钟
         # os.system('mplayer %s' % mp3path2)
         os.system('%s' % mp3path2)
+
+        if send_mail('python自动转发邮件', '%s' % text):
+            print('发送成功')
+        else:
+            print('发送失败')
+
         time.sleep(30)
         # 播报语音天气
-        mp3path1 = os.path.join(os.path.dirname(__file__), datetime.datetime.now().strftime('%Y.%m.%d') + '天气.mp3')
+        mp3path1 = os.path.join(os.path.dirname(__file__),
+                                datetime.datetime.now().strftime('%Y.%m.%d') + f'{nameofproject}.mp3')
         # os.system('mplayer %s' % mp3path1)
         os.system('%s' % mp3path1)
         # os.remove(mp3path1)
         os.system('clear')
         print(text)
+        time.sleep(30)
 
 
 if __name__ == '__main__':
