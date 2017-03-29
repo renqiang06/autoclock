@@ -209,7 +209,7 @@ def main():
         if hour == 19:
             text = get_weather()
             nameofproject = '天气'
-        elif hour == 22:
+        elif hour == 21:
             text = lianjiaanting()
             nameofproject = '玉兰四村'
         else:

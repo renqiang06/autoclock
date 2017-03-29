@@ -3,3 +3,5 @@ _site
 .jekyll-metadata
 *.mp3
 clock.py
+clockbackup20170329.py
+readme.md

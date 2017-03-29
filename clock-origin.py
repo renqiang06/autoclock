@@ -115,6 +115,7 @@ def text2voice(text):
 def main():
     while True:
         s = get_seconds()
+		
         print(s)
         time.sleep(s)
         # 获取需要转换语音的文字
